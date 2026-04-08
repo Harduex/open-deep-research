@@ -1,0 +1,24 @@
+[project]
+name = "open-deep-research"
+version = "0.1.0"
+description = "Autonomous multi-step web research agent implementing Gemini Deep Research algorithms"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+dependencies = [
+    "litellm>=1.40",
+    "aiohttp>=3.9",
+    "trafilatura>=1.8",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "typer>=0.12",
+    "rich>=13.0",
+    "pyyaml>=6.0",
+    "duckduckgo-search>=8.1.1",
+]
+
+[project.scripts]
+odr = "open_deep_research.cli.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

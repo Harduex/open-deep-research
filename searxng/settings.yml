@@ -1,0 +1,10 @@
+use_default_settings: true
+
+server:
+  limiter: false
+  secret_key: "odr-dev-secret-change-in-production"
+
+search:
+  formats:
+    - html
+    - json
