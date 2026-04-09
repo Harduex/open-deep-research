@@ -83,3 +83,7 @@ Then set `search.provider: "searxng"` in your config.
 ## License
 
 Apache 2.0
+
+---
+
+*This project is not affiliated with, endorsed by, or sponsored by Google or Google DeepMind. "Gemini" and "Gemini Deep Research" are trademarks of Google LLC. This is an independent reimplementation based on publicly available information (blog posts, API docs, and academic papers).*
