@@ -22,6 +22,12 @@ odr research "topic" --model openai/gpt-4o --max-sources 20 --budget 100000
 - Python 3.10+
 - An LLM provider (Ollama local, OpenAI, Anthropic, etc. via [LiteLLM](https://github.com/BerriAI/litellm))
 
+### Optional
+
+```bash
+pip install -e ".[quality]"   # Embedding-based dedup (sentence-transformers)
+```
+
 ## Configuration
 
 Create a `config.yaml` in the project root (or pass `--config path/to/config.yaml`):
@@ -46,10 +52,12 @@ Environment variables with `ODR_` prefix also work (e.g. `ODR_LLM__MODEL=openai/
 ## CLI
 
 ```bash
-odr research "query"              # Run research
-odr sessions                      # List saved sessions
-odr export <session-id>           # Export report as markdown
-odr export <session-id> -o out.md # Export to file
+odr research "query"                            # Run research
+odr sessions                                    # List saved sessions
+odr resume <session-id>                         # Resume interrupted session
+odr follow-up <session-id> "expand on X"        # Follow-up on completed research
+odr export <session-id>                         # Export report as markdown
+odr export <session-id> -o out.md               # Export to file
 ```
 
 ## How it works

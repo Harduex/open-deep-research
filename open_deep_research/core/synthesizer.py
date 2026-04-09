@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from open_deep_research.config import OutputConfig
+from open_deep_research.core.verifier import Verifier
 from open_deep_research.llm.client import LLMClient
 from open_deep_research.models import (
     Finding,
@@ -66,6 +67,7 @@ class Synthesizer:
         self._client = client
         self._config = config
         self._model_name = model_name
+        self._verifier = Verifier(client)
 
     async def synthesize(
         self, plan: ResearchPlan, findings: list[Finding], sources: list[Source], budget: TokenBudget,
@@ -122,6 +124,9 @@ class Synthesizer:
             source_map=source_map,
         )
         content = await self._client.complete_text(prompt)
+
+        # Self-verification pass
+        content = await self._verifier.verify_and_revise(content, section_findings, sources)
 
         all_source_ids = []
         for f in section_findings:
