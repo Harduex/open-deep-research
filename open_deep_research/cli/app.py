@@ -1,3 +1,4 @@
+import io
 import os
 import sys
 
@@ -10,13 +11,21 @@ app = typer.Typer(
 )
 
 
-def main() -> None:
-    # Enable UTF-8 mode for the entire process (PEP 540).
+def _ensure_utf8_streams() -> None:
+    """Replace stdout/stderr with UTF-8 wrappers so every downstream
+    writer (Rich Console, print, etc.) inherits safe encoding."""
     os.environ["PYTHONUTF8"] = "1"
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    if hasattr(sys.stderr, "reconfigure"):
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    for name in ("stdout", "stderr"):
+        stream = getattr(sys, name)
+        if hasattr(stream, "buffer"):
+            new = io.TextIOWrapper(
+                stream.buffer, encoding="utf-8", errors="replace",
+                line_buffering=stream.line_buffering,
+            )
+            setattr(sys, name, new)
 
+
+def main() -> None:
+    _ensure_utf8_streams()
     import open_deep_research.cli.commands  # noqa: F401
     app()
