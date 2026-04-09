@@ -207,11 +207,11 @@ async def _run_follow_up(session_id: str, follow_up_query: str, config_path: Pat
 @app.command()
 def research(
     query: str = typer.Argument(..., help="Research query"),
-    model: str | None = typer.Option(None, help="LLM model override (e.g., ollama/llama3)"),
-    max_sources: int | None = typer.Option(None, help="Maximum sources to read"),
-    max_iterations: int | None = typer.Option(None, help="Maximum research iterations"),
-    budget: int | None = typer.Option(None, help="Token budget"),
-    config: Path | None = typer.Option(None, help="Path to config.yaml"),
+    model: str | None = typer.Option(None, "-m", "--model", help="LLM model override (e.g., ollama/llama3)"),
+    max_sources: int | None = typer.Option(None, "-s", "--max-sources", help="Maximum sources to read"),
+    max_iterations: int | None = typer.Option(None, "-i", "--max-iterations", help="Maximum research iterations"),
+    budget: int | None = typer.Option(None, "-b", "--budget", help="Token budget"),
+    config: Path | None = typer.Option(None, "-c", "--config", help="Path to config.yaml"),
 ) -> None:
     """Run a deep research investigation on a topic."""
     overrides = {}
@@ -237,7 +237,7 @@ def research(
 
 @app.command()
 def sessions(
-    config: Path | None = typer.Option(None, help="Path to config.yaml"),
+    config: Path | None = typer.Option(None, "-c", "--config", help="Path to config.yaml"),
 ) -> None:
     """List all research sessions."""
     settings = load_settings(config)
@@ -248,7 +248,7 @@ def sessions(
 @app.command()
 def resume(
     session_id: str = typer.Argument(..., help="Session ID to resume"),
-    config: Path | None = typer.Option(None, help="Path to config.yaml"),
+    config: Path | None = typer.Option(None, "-c", "--config", help="Path to config.yaml"),
 ) -> None:
     """Resume an interrupted research session."""
     try:
@@ -266,7 +266,7 @@ def resume(
 def follow_up(
     session_id: str = typer.Argument(..., help="Session ID to follow up on"),
     query: str = typer.Argument(..., help="Follow-up question"),
-    config: Path | None = typer.Option(None, help="Path to config.yaml"),
+    config: Path | None = typer.Option(None, "-c", "--config", help="Path to config.yaml"),
 ) -> None:
     """Ask a follow-up question on a completed research session."""
     try:
@@ -283,8 +283,8 @@ def follow_up(
 @app.command()
 def export(
     session_id: str = typer.Argument(..., help="Session ID to export"),
-    output: Path | None = typer.Option(None, help="Output file path"),
-    config: Path | None = typer.Option(None, help="Path to config.yaml"),
+    output: Path | None = typer.Option(None, "-o", "--output", help="Output file path"),
+    config: Path | None = typer.Option(None, "-c", "--config", help="Path to config.yaml"),
 ) -> None:
     """Export a completed research session as markdown."""
     settings = load_settings(config)
