@@ -1,12 +1,38 @@
 from __future__ import annotations
 
+import sys
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
 from open_deep_research.models import ResearchPlan, StoppingEvaluation, TokenBudget
 
-console = Console()
+
+def _safe_text(text: str) -> str:
+    """Replace characters that can't be encoded in the console's encoding."""
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    return text.encode(encoding, errors="replace").decode(encoding)
+
+
+def _make_console() -> Console:
+    """Create a console that handles encoding errors on Windows."""
+    import io
+    import os
+
+    # On Windows with legacy codepage, wrap stdout to handle encoding errors
+    if os.name == "nt" and hasattr(sys.stdout, "encoding"):
+        encoding = sys.stdout.encoding or "utf-8"
+        if encoding.lower().replace("-", "") not in ("utf8", "utf16"):
+            # Wrap stdout with error handling
+            wrapped = io.TextIOWrapper(
+                sys.stdout.buffer, encoding=encoding, errors="replace", line_buffering=True,
+            )
+            return Console(file=wrapped)
+    return Console()
+
+
+console = _make_console()
 
 STATUS_ICONS = {
     "pending": "[yellow]o[/]",
