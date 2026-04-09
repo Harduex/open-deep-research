@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from dataclasses import dataclass
@@ -54,6 +55,8 @@ def _extract_json(text: str) -> str:
 
 
 class LLMClient:
+    LLM_TIMEOUT = 120  # seconds
+
     def __init__(self, config: LLMConfig, budget: TokenBudget, verbose_callback: Callable[[VerboseEvent], None] | None = None) -> None:
         self._model = config.model
         self._api_base = config.api_base
@@ -103,7 +106,10 @@ class LLMClient:
         if self._api_key:
             kwargs["api_key"] = self._api_key
 
-        response = await litellm.acompletion(**kwargs)
+        response = await asyncio.wait_for(
+            litellm.acompletion(**kwargs),
+            timeout=self.LLM_TIMEOUT,
+        )
         self._track_usage(response)
         raw = response.choices[0].message.content or ""
 
