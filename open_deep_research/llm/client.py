@@ -17,6 +17,10 @@ class StructuredOutputError(Exception):
     pass
 
 
+class BudgetExhaustedError(Exception):
+    pass
+
+
 def _extract_json(text: str) -> str:
     # Strip thinking blocks (e.g. <think>...</think>)
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
@@ -71,6 +75,9 @@ class LLMClient:
         return await self._call(prompt, system)
 
     async def _call(self, prompt: str, system: str | None = None) -> str:
+        if self._budget.is_exceeded:
+            raise BudgetExhaustedError("Token budget exhausted")
+
         messages: list[dict] = []
         if system:
             messages.append({"role": "system", "content": system})

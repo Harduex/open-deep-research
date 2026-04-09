@@ -25,7 +25,7 @@ from open_deep_research.core.reader import Reader
 from open_deep_research.core.searcher import Searcher
 from open_deep_research.core.synthesizer import Synthesizer, format_report_markdown
 from open_deep_research.embeddings.dedup import FindingDeduplicator
-from open_deep_research.llm.client import LLMClient
+from open_deep_research.llm.client import BudgetExhaustedError, LLMClient
 from open_deep_research.models import SessionState, TokenBudget
 from open_deep_research.providers import create_provider
 from open_deep_research.state.session import SessionManager
@@ -47,42 +47,45 @@ async def _run_investigation_loop(
 
     # LOOP
     state.status = "investigating"
-    while True:
-        pending = [sq for sq in plan.sub_questions if sq.status == "pending"]
-        if not pending:
-            break
+    try:
+        while True:
+            pending = [sq for sq in plan.sub_questions if sq.status == "pending"]
+            if not pending:
+                break
 
-        sq = pending[0]
-        sq.status = "investigating"  # type: ignore[assignment]
-        show_iteration(plan.iteration, plan.max_iterations)
-        console.print(f"  [bold]Investigating:[/] {sq.question}")
+            sq = pending[0]
+            sq.status = "investigating"  # type: ignore[assignment]
+            show_iteration(plan.iteration, plan.max_iterations)
+            console.print(f"  [bold]Investigating:[/] {sq.question}")
 
-        new_sources, new_findings = await searcher.search_sub_question(sq, state.sources)
-        state.sources.extend(new_sources)
-        state.findings.extend(new_findings)
-        sq.findings.extend(new_findings)
+            new_sources, new_findings = await searcher.search_sub_question(sq, state.sources)
+            state.sources.extend(new_sources)
+            state.findings.extend(new_findings)
+            sq.findings.extend(new_findings)
 
-        for f in new_findings:
-            show_finding(f.content, f.confidence)
+            for f in new_findings:
+                show_finding(f.content, f.confidence)
 
-        # Deduplicate findings
-        if dedup:
-            pre_count = len(state.findings)
-            state.findings = dedup.deduplicate(state.findings)
-            deduped = pre_count - len(state.findings)
-            if deduped > 0:
-                console.print(f"  [dim]Dedup:[/] merged {deduped} similar findings")
+            # Deduplicate findings
+            if dedup:
+                pre_count = len(state.findings)
+                state.findings = dedup.deduplicate(state.findings)
+                deduped = pre_count - len(state.findings)
+                if deduped > 0:
+                    console.print(f"  [dim]Dedup:[/] merged {deduped} similar findings")
 
-        sq.status = "answered" if new_findings else "unanswerable"  # type: ignore[assignment]
-        plan = await planner.update_plan(plan, new_findings, state.sources)
-        show_budget(budget)
+            sq.status = "answered" if new_findings else "unanswerable"  # type: ignore[assignment]
+            plan = await planner.update_plan(plan, new_findings, state.sources)
+            show_budget(budget)
 
-        evaluation = await evaluator.evaluate_stopping(plan, state.findings, state.sources, budget)
-        show_evaluation(evaluation)
-        session_mgr.save(state)
+            evaluation = await evaluator.evaluate_stopping(plan, state.findings, state.sources, budget)
+            show_evaluation(evaluation)
+            session_mgr.save(state)
 
-        if evaluation.should_stop:
-            break
+            if evaluation.should_stop:
+                break
+    except BudgetExhaustedError:
+        console.print("[yellow]Budget exhausted — moving to synthesis.[/]")
 
     # SYNTHESIZE
     show_synthesizing()

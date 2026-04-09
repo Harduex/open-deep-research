@@ -1,4 +1,7 @@
-from open_deep_research.llm.client import _extract_json
+from open_deep_research.llm.client import BudgetExhaustedError, _extract_json
+from open_deep_research.models import TokenBudget
+
+import pytest
 
 
 def test_extract_json_plain():
@@ -34,3 +37,15 @@ def test_extract_json_array():
 def test_extract_json_nested():
     text = '{"outer": {"inner": 1}}'
     assert _extract_json(text) == '{"outer": {"inner": 1}}'
+
+
+def test_budget_exhausted_raises():
+    from open_deep_research.config import LLMConfig
+
+    budget = TokenBudget(max_tokens=100, used_tokens=100)
+    client = __import__("open_deep_research.llm.client", fromlist=["LLMClient"]).LLMClient(
+        LLMConfig(), budget,
+    )
+    with pytest.raises(BudgetExhaustedError):
+        import asyncio
+        asyncio.run(client.complete_text("test prompt"))
