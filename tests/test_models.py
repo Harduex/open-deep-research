@@ -1,5 +1,6 @@
 from open_deep_research.models import (
     Finding,
+    IterationMetrics,
     Report,
     ReportMetadata,
     ReportSection,
@@ -81,6 +82,30 @@ def test_session_state_defaults():
     assert state.sources == []
     assert state.findings == []
     assert state.report is None
+    assert state.iteration_metrics == []
+
+
+def test_iteration_metrics_model():
+    m = IterationMetrics(iteration=0, new_findings_count=5, new_sources_count=3)
+    assert m.dedup_removed_count == 0
+    data = m.model_dump()
+    assert data["iteration"] == 0
+    assert data["new_findings_count"] == 5
+
+
+def test_session_state_with_metrics_serializes():
+    plan = ResearchPlan(query="test", sub_questions=[])
+    state = SessionState(
+        session_id="abc123",
+        plan=plan,
+        iteration_metrics=[
+            IterationMetrics(iteration=0, new_findings_count=5, new_sources_count=3, dedup_removed_count=1),
+        ],
+    )
+    json_str = state.model_dump_json()
+    restored = SessionState.model_validate_json(json_str)
+    assert len(restored.iteration_metrics) == 1
+    assert restored.iteration_metrics[0].new_findings_count == 5
 
 
 def test_report_model():

@@ -26,7 +26,7 @@ from open_deep_research.core.searcher import Searcher
 from open_deep_research.core.synthesizer import Synthesizer, format_report_markdown
 from open_deep_research.embeddings.dedup import FindingDeduplicator
 from open_deep_research.llm.client import BudgetExhaustedError, LLMClient
-from open_deep_research.models import SessionState, TokenBudget
+from open_deep_research.models import IterationMetrics, SessionState, TokenBudget
 from open_deep_research.providers import create_provider
 from open_deep_research.state.session import SessionManager
 
@@ -67,6 +67,7 @@ async def _run_investigation_loop(
                 show_finding(f.content, f.confidence)
 
             # Deduplicate findings
+            deduped = 0
             if dedup:
                 pre_count = len(state.findings)
                 state.findings = dedup.deduplicate(state.findings)
@@ -74,11 +75,22 @@ async def _run_investigation_loop(
                 if deduped > 0:
                     console.print(f"  [dim]Dedup:[/] merged {deduped} similar findings")
 
+            # Track iteration metrics
+            state.iteration_metrics.append(IterationMetrics(
+                iteration=plan.iteration,
+                new_findings_count=len(new_findings),
+                new_sources_count=len(new_sources),
+                dedup_removed_count=deduped,
+            ))
+
             sq.status = "answered" if new_findings else "unanswerable"  # type: ignore[assignment]
             plan = await planner.update_plan(plan, new_findings, state.sources)
             show_budget(budget)
 
-            evaluation = await evaluator.evaluate_stopping(plan, state.findings, state.sources, budget)
+            evaluation = await evaluator.evaluate_stopping(
+                plan, state.findings, state.sources, budget,
+                iteration_metrics=state.iteration_metrics,
+            )
             show_evaluation(evaluation)
             session_mgr.save(state)
 

@@ -92,6 +92,13 @@ class StoppingEvaluation(BaseModel):
     unanswered_questions: list[str] = []
 
 
+class IterationMetrics(BaseModel):
+    iteration: int
+    new_findings_count: int
+    new_sources_count: int
+    dedup_removed_count: int = 0
+
+
 class SessionState(BaseModel):
     session_id: str
     plan: ResearchPlan
@@ -100,5 +107,6 @@ class SessionState(BaseModel):
     budget: TokenBudget = Field(default_factory=TokenBudget)
     status: Literal["planning", "investigating", "synthesizing", "complete", "failed"] = "planning"
     report: Report | None = None
+    iteration_metrics: list[IterationMetrics] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
