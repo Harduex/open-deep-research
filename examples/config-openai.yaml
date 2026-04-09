@@ -1,0 +1,16 @@
+# OpenAI GPT-4o configuration
+# Requires: OPENAI_API_KEY environment variable set
+# Usage: odr research "query" --config examples/config-openai.yaml
+
+llm:
+  model: "openai/gpt-4o"
+  temperature: 0.3
+  # api_key: set via OPENAI_API_KEY env var
+
+search:
+  provider: "duckduckgo"
+
+research:
+  max_iterations: 10
+  max_sources: 30
+  budget_tokens: 500000

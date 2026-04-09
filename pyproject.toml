@@ -4,6 +4,18 @@ version = "0.1.0"
 description = "Autonomous multi-step web research agent implementing Gemini Deep Research algorithms"
 requires-python = ">=3.10"
 license = "Apache-2.0"
+readme = "README.md"
+keywords = ["research", "ai", "llm", "agent", "deep-research"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "litellm>=1.40",
     "aiohttp>=3.9",

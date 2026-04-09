@@ -1,0 +1,17 @@
+# Ollama (local) - default configuration
+# Requires: ollama running locally with a model pulled
+# Usage: odr research "query" --config examples/config-ollama.yaml
+
+llm:
+  model: "ollama/llama3.1"
+  api_base: "http://localhost:11434"
+  temperature: 0.3
+
+search:
+  provider: "duckduckgo"
+
+research:
+  max_iterations: 10
+  max_sources: 30
+  budget_tokens: 500000
+  source_summary_tokens: 500

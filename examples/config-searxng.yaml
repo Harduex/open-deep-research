@@ -1,0 +1,18 @@
+# SearXNG (private meta-search) configuration
+# Requires: docker compose up -d (runs SearXNG on port 8888)
+# Usage: odr research "query" --config examples/config-searxng.yaml
+
+llm:
+  model: "ollama/llama3.1"
+  api_base: "http://localhost:11434"
+  temperature: 0.3
+
+search:
+  provider: "searxng"
+  searxng:
+    base_url: "http://localhost:8888"
+
+research:
+  max_iterations: 10
+  max_sources: 30
+  budget_tokens: 500000

@@ -1,0 +1,16 @@
+# Google Gemini configuration
+# Requires: GEMINI_API_KEY environment variable set
+# Usage: odr research "query" --config examples/config-gemini.yaml
+
+llm:
+  model: "gemini/gemini-2.5-flash"
+  temperature: 0.3
+  # api_key: set via GEMINI_API_KEY env var
+
+search:
+  provider: "duckduckgo"
+
+research:
+  max_iterations: 10
+  max_sources: 30
+  budget_tokens: 500000

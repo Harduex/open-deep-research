@@ -1,0 +1,16 @@
+# Anthropic Claude configuration
+# Requires: ANTHROPIC_API_KEY environment variable set
+# Usage: odr research "query" --config examples/config-claude.yaml
+
+llm:
+  model: "anthropic/claude-sonnet-4-6"
+  temperature: 0.3
+  # api_key: set via ANTHROPIC_API_KEY env var
+
+search:
+  provider: "duckduckgo"
+
+research:
+  max_iterations: 10
+  max_sources: 30
+  budget_tokens: 500000
