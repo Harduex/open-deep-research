@@ -54,7 +54,8 @@ class Reader:
                     if resp.status != 200:
                         return None
                     # Cap at 5MB
-                    return await resp.text(errors="replace")[:5_000_000]
+                    content = await resp.text(errors="replace")
+                    return content[:5_000_000]
         except (aiohttp.ClientError, TimeoutError, UnicodeDecodeError):
             return None
 

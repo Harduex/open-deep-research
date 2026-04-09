@@ -2,7 +2,7 @@ import typer
 
 app = typer.Typer(
     name="odr",
-    help="Open Deep Research — Autonomous web research agent",
+    help="Open Deep Research - Autonomous web research agent",
     no_args_is_help=True,
 )
 

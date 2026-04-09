@@ -18,6 +18,9 @@ class StructuredOutputError(Exception):
 
 
 def _extract_json(text: str) -> str:
+    # Strip thinking blocks (e.g. <think>...</think>)
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+
     # Strip markdown code fences
     fenced = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
     if fenced:

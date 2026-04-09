@@ -107,8 +107,12 @@ class Searcher:
             question=sq.question,
             existing_context=existing_ctx,
         )
-        response = await self._client.complete(prompt, _QueryResponse)
-        return response.queries[:3]
+        try:
+            response = await self._client.complete(prompt, _QueryResponse)
+            return response.queries[:3]
+        except Exception:
+            # Fallback: use the question itself as a search query
+            return [sq.question]
 
     async def _extract_finding(self, question: str, source: Source) -> Finding | None:
         prompt = FINDING_EXTRACTION_PROMPT.format(
