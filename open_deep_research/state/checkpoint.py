@@ -21,4 +21,7 @@ def load_checkpoint(session_id: str, storage_dir: Path) -> SessionState | None:
     path = Path(storage_dir).expanduser() / session_id / "state.json"
     if not path.exists():
         return None
-    return SessionState.model_validate_json(path.read_text())
+    try:
+        return SessionState.model_validate_json(path.read_text())
+    except Exception:
+        return None

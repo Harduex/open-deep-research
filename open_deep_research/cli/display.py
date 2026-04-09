@@ -1,57 +1,31 @@
 from __future__ import annotations
 
-import sys
-
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
 from open_deep_research.models import ResearchPlan, StoppingEvaluation, TokenBudget
 
-
-def _safe_text(text: str) -> str:
-    """Replace characters that can't be encoded in the console's encoding."""
-    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
-    return text.encode(encoding, errors="replace").decode(encoding)
-
-
-def _make_console() -> Console:
-    """Create a console that handles encoding errors on Windows."""
-    import io
-    import os
-
-    # On Windows with legacy codepage, wrap stdout to handle encoding errors
-    if os.name == "nt" and hasattr(sys.stdout, "encoding"):
-        encoding = sys.stdout.encoding or "utf-8"
-        if encoding.lower().replace("-", "") not in ("utf8", "utf16"):
-            # Wrap stdout with error handling
-            wrapped = io.TextIOWrapper(
-                sys.stdout.buffer, encoding=encoding, errors="replace", line_buffering=True,
-            )
-            return Console(file=wrapped)
-    return Console()
-
-
-console = _make_console()
+console = Console()
 
 STATUS_ICONS = {
-    "pending": "[yellow]o[/]",
-    "investigating": "[blue]*[/]",
-    "answered": "[green]+[/]",
-    "unanswerable": "[red]x[/]",
+    "pending": "[yellow]○[/]",
+    "investigating": "[blue]◉[/]",
+    "answered": "[green]✓[/]",
+    "unanswerable": "[red]✗[/]",
 }
 
 
 def show_plan(plan: ResearchPlan) -> None:
     lines = []
     for sq in plan.sub_questions:
-        icon = STATUS_ICONS.get(sq.status, "o")
+        icon = STATUS_ICONS.get(sq.status, "○")
         lines.append(f"  {icon} [{sq.id}] {sq.question}")
-    console.print(Panel("\n".join(lines), title=f"Research Plan - {len(plan.sub_questions)} sub-questions", border_style="cyan"))
+    console.print(Panel("\n".join(lines), title=f"Research Plan — {len(plan.sub_questions)} sub-questions", border_style="cyan"))
 
 
 def show_iteration(iteration: int, max_iterations: int) -> None:
-    console.print(f"\n[bold cyan]--- Iteration {iteration + 1}/{max_iterations} ---[/]")
+    console.print(f"\n[bold cyan]━━━ Iteration {iteration + 1}/{max_iterations} ━━━[/]")
 
 
 def show_searching(query: str) -> None:
@@ -70,11 +44,11 @@ def show_finding(content: str, confidence: str) -> None:
 def show_evaluation(evaluation: StoppingEvaluation) -> None:
     bar_len = 20
     filled = int(evaluation.coverage_score * bar_len)
-    bar = "#" * filled + "-" * (bar_len - filled)
+    bar = "█" * filled + "░" * (bar_len - filled)
     console.print(f"\n  Coverage: [{bar}] {evaluation.coverage_score:.0%}")
     console.print(f"  Saturation: {'yes' if evaluation.saturation_detected else 'no'}")
     decision = "[green]Continuing" if not evaluation.should_stop else "[yellow]Stopping"
-    console.print(f"  Decision: {decision} - {evaluation.reasoning}[/]")
+    console.print(f"  Decision: {decision} — {evaluation.reasoning}[/]")
 
 
 def show_synthesizing() -> None:

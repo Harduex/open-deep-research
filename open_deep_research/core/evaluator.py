@@ -47,7 +47,7 @@ class Evaluator:
             )
 
         sq_summary = "\n".join(
-            f"- [{sq.id}] ({sq.status}) {sq.question} - {len(sq.findings)} findings"
+            f"- [{sq.id}] ({sq.status}) {sq.question} — {len(sq.findings)} findings"
             for sq in plan.sub_questions
         )
 
