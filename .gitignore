@@ -11,10 +11,17 @@ build/
 # Virtual environments
 .venv/
 venv/
+env/
 
-# Environment
+# Environment / secrets
 .env
 .env.*
+*.key
+*.pem
+
+# User config (use examples/ as templates)
+config.yaml
+config.yml
 
 # IDE
 .vscode/
@@ -27,5 +34,15 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Sessions data
+# Sessions data (contains research results)
 sessions/
+~/.open-deep-research/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# uv
+.python-version
