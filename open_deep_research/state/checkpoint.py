@@ -13,7 +13,7 @@ def save_checkpoint(state: SessionState, storage_dir: Path) -> Path:
 
     state.updated_at = datetime.now(timezone.utc)
     path = session_dir / "state.json"
-    path.write_text(state.model_dump_json(indent=2))
+    path.write_text(state.model_dump_json(indent=2), encoding="utf-8")
     return path
 
 
@@ -22,6 +22,6 @@ def load_checkpoint(session_id: str, storage_dir: Path) -> SessionState | None:
     if not path.exists():
         return None
     try:
-        return SessionState.model_validate_json(path.read_text())
+        return SessionState.model_validate_json(path.read_text(encoding="utf-8"))
     except Exception:
         return None
