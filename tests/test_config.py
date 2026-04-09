@@ -10,6 +10,8 @@ def test_default_settings():
     assert s.research.max_iterations == 10
     assert s.research.max_sources == 30
     assert s.research.budget_tokens == 500_000
+    assert s.research.follow_links is True
+    assert s.research.max_followed_links == 5
 
 
 def test_load_settings_no_config():

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import re
+from urllib.parse import urljoin, urlparse, urlunparse
+
 import aiohttp
 import trafilatura
+from pydantic import BaseModel
 
 from open_deep_research.llm.client import LLMClient
 from open_deep_research.models import SearchResult, Source
@@ -23,20 +27,30 @@ Content:
 
 Write a dense, factual summary. Do not include preamble or meta-commentary."""
 
+_HREF_RE = re.compile(r'href=["\']([^"\']+)["\']', re.IGNORECASE)
+_MAX_EXTRACTED_LINKS = 20
+
+
+class ReadResult(BaseModel):
+    source: Source | None = None
+    extracted_urls: list[str] = []
+
 
 class Reader:
     def __init__(self, client: LLMClient, summary_tokens: int = 500) -> None:
         self._client = client
         self._summary_tokens = summary_tokens
 
-    async def read(self, result: SearchResult, source_id: int, query_context: str = "") -> Source | None:
+    async def read(self, result: SearchResult, source_id: int, query_context: str = "") -> ReadResult:
         html = await self._fetch_html(result.url)
         if not html:
-            return None
+            return ReadResult()
+
+        extracted_urls = self._extract_links(html, result.url)
 
         text = trafilatura.extract(html, include_comments=False, include_tables=True)
         if not text:
-            return None
+            return ReadResult(extracted_urls=extracted_urls)
 
         token_estimate = int(len(text.split()) * 1.3)
         if token_estimate > 1000:
@@ -44,7 +58,8 @@ class Reader:
         else:
             snippet = text
 
-        return Source(id=source_id, url=result.url, title=result.title, snippet=snippet)
+        source = Source(id=source_id, url=result.url, title=result.title, snippet=snippet)
+        return ReadResult(source=source, extracted_urls=extracted_urls)
 
     async def _fetch_html(self, url: str) -> str | None:
         headers = {"User-Agent": "OpenDeepResearch/0.1 (research agent)"}
@@ -72,3 +87,23 @@ class Reader:
             content=text,
         )
         return await self._client.complete_text(prompt)
+
+    @staticmethod
+    def _extract_links(html: str, base_url: str) -> list[str]:
+        """Extract unique http/https URLs from HTML href attributes."""
+        seen: set[str] = set()
+        urls: list[str] = []
+        for match in _HREF_RE.finditer(html):
+            raw = match.group(1).strip()
+            resolved = urljoin(base_url, raw)
+            parsed = urlparse(resolved)
+            if parsed.scheme not in ("http", "https"):
+                continue
+            # Strip fragment, normalize
+            clean = urlunparse(parsed._replace(fragment=""))
+            if clean not in seen:
+                seen.add(clean)
+                urls.append(clean)
+            if len(urls) >= _MAX_EXTRACTED_LINKS:
+                break
+        return urls

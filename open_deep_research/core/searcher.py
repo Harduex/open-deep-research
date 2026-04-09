@@ -4,7 +4,7 @@ import asyncio
 
 from pydantic import BaseModel
 
-from open_deep_research.core.reader import Reader
+from open_deep_research.core.reader import ReadResult, Reader
 from open_deep_research.llm.client import LLMClient
 from open_deep_research.models import Finding, SearchResult, Source, SubQuestion
 from open_deep_research.providers.base import SearchProvider
@@ -44,11 +44,16 @@ class _FindingResponse(BaseModel):
 
 
 class Searcher:
-    def __init__(self, provider: SearchProvider, reader: Reader, client: LLMClient, max_sources: int = 30) -> None:
+    def __init__(
+        self, provider: SearchProvider, reader: Reader, client: LLMClient,
+        max_sources: int = 30, follow_links: bool = True, max_followed_links: int = 5,
+    ) -> None:
         self._provider = provider
         self._reader = reader
         self._client = client
         self._max_sources = max_sources
+        self._follow_links = follow_links
+        self._max_followed_links = max_followed_links
 
     async def search_sub_question(
         self, sq: SubQuestion, existing_sources: list[Source],
@@ -83,9 +88,36 @@ class Searcher:
         read_results = await asyncio.gather(*read_tasks, return_exceptions=True)
 
         new_sources: list[Source] = []
+        extracted_urls: list[str] = []
         for result in read_results:
-            if isinstance(result, Source):
-                new_sources.append(result)
+            if isinstance(result, ReadResult):
+                if result.source:
+                    new_sources.append(result.source)
+                extracted_urls.extend(result.extracted_urls)
+
+        # Follow extracted links (graph-based exploration, depth=1)
+        if self._follow_links and extracted_urls:
+            follow_remaining = self._max_sources - len(existing_sources) - len(new_sources)
+            follow_urls = []
+            for url in extracted_urls:
+                if url not in seen_urls and len(follow_urls) < min(self._max_followed_links, follow_remaining):
+                    seen_urls.add(url)
+                    follow_urls.append(url)
+
+            if follow_urls:
+                follow_next_id = next_id + len(unique_results)
+                follow_tasks = [
+                    self._reader.read(
+                        SearchResult(url=u, title="", snippet=""),
+                        source_id=follow_next_id + i,
+                        query_context=sq.question,
+                    )
+                    for i, u in enumerate(follow_urls)
+                ]
+                follow_results = await asyncio.gather(*follow_tasks, return_exceptions=True)
+                for result in follow_results:
+                    if isinstance(result, ReadResult) and result.source:
+                        new_sources.append(result.source)
 
         # Extract findings concurrently
         extract_tasks = [self._extract_finding(sq.question, source) for source in new_sources]

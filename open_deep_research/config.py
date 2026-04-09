@@ -28,6 +28,8 @@ class ResearchConfig(BaseModel):
     max_sources: int = 30
     budget_tokens: int = 500_000
     source_summary_tokens: int = 500
+    follow_links: bool = True
+    max_followed_links: int = 5
 
 
 class OutputConfig(BaseModel):

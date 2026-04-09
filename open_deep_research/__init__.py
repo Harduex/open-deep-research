@@ -34,7 +34,11 @@ async def research(query: str, settings: Settings | None = None, config_path: Pa
     provider = create_provider(settings.search)
     reader = Reader(client, settings.research.source_summary_tokens)
     planner = Planner(client)
-    searcher = Searcher(provider, reader, client, settings.research.max_sources)
+    searcher = Searcher(
+        provider, reader, client, settings.research.max_sources,
+        follow_links=settings.research.follow_links,
+        max_followed_links=settings.research.max_followed_links,
+    )
     evaluator = Evaluator(client)
     synthesizer = Synthesizer(client, settings.output, settings.llm.model)
     session_mgr = SessionManager(settings.sessions.storage_dir)
