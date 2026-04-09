@@ -87,12 +87,10 @@ class Searcher:
             if isinstance(result, Source):
                 new_sources.append(result)
 
-        # Extract findings from each source
-        new_findings: list[Finding] = []
-        for source in new_sources:
-            finding = await self._extract_finding(sq.question, source)
-            if finding:
-                new_findings.append(finding)
+        # Extract findings concurrently
+        extract_tasks = [self._extract_finding(sq.question, source) for source in new_sources]
+        extract_results = await asyncio.gather(*extract_tasks, return_exceptions=True)
+        new_findings: list[Finding] = [r for r in extract_results if isinstance(r, Finding)]
 
         return new_sources, new_findings
 
