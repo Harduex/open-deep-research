@@ -11,6 +11,9 @@ import litellm
 from pydantic import BaseModel, ValidationError
 from rich.console import Console
 
+# Suppress the noisy "Give Feedback / Get Help" banner on every exception
+litellm.suppress_debug_info = True
+
 from open_deep_research.config import LLMConfig
 from open_deep_research.models import TokenBudget
 
@@ -30,6 +33,10 @@ class StructuredOutputError(Exception):
 
 
 class BudgetExhaustedError(Exception):
+    pass
+
+
+class LLMCallError(Exception):
     pass
 
 
@@ -124,30 +131,38 @@ class LLMClient:
         label = self._STAGE_LABELS.get(stage, stage or "Thinking")
         start = time.monotonic()
 
-        if use_spinner:
-            async def _update_status(status):
-                while True:
-                    await asyncio.sleep(1)
-                    elapsed = int(time.monotonic() - start)
-                    status.update(f"  [bold cyan]{label}...[/] [dim]{elapsed}s[/]")
+        try:
+            if use_spinner:
+                async def _update_status(status):
+                    while True:
+                        await asyncio.sleep(1)
+                        elapsed = int(time.monotonic() - start)
+                        status.update(f"  [bold cyan]{label}...[/] [dim]{elapsed}s[/]")
 
-            with self._console.status(f"  [bold cyan]{label}...[/]", spinner="dots") as status:
-                updater = asyncio.create_task(_update_status(status))
-                try:
-                    response = await asyncio.wait_for(
-                        litellm.acompletion(**kwargs),
-                        timeout=self.LLM_TIMEOUT,
-                    )
-                finally:
-                    updater.cancel()
+                with self._console.status(f"  [bold cyan]{label}...[/]", spinner="dots") as status:
+                    updater = asyncio.create_task(_update_status(status))
+                    try:
+                        response = await asyncio.wait_for(
+                            litellm.acompletion(**kwargs),
+                            timeout=self.LLM_TIMEOUT,
+                        )
+                    finally:
+                        updater.cancel()
 
+                elapsed = int(time.monotonic() - start)
+                self._console.print(f"  [dim]{label} done ({elapsed}s)[/]")
+            else:
+                response = await asyncio.wait_for(
+                    litellm.acompletion(**kwargs),
+                    timeout=self.LLM_TIMEOUT,
+                )
+        except asyncio.TimeoutError:
             elapsed = int(time.monotonic() - start)
-            self._console.print(f"  [dim]{label} done ({elapsed}s)[/]")
-        else:
-            response = await asyncio.wait_for(
-                litellm.acompletion(**kwargs),
-                timeout=self.LLM_TIMEOUT,
-            )
+            raise LLMCallError(f"LLM call timed out after {elapsed}s during '{label}' (model: {self._model})")
+        except litellm.exceptions.APIConnectionError as e:
+            raise LLMCallError(f"Cannot connect to LLM provider during '{label}': {e}")
+        except litellm.exceptions.APIError as e:
+            raise LLMCallError(f"LLM API error during '{label}': {e}")
 
         self._track_usage(response)
         raw = response.choices[0].message.content or ""

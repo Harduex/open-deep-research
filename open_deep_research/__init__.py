@@ -12,7 +12,7 @@ async def research(query: str, settings: Settings | None = None, config_path: Pa
     from open_deep_research.core.reader import Reader
     from open_deep_research.core.searcher import Searcher
     from open_deep_research.core.synthesizer import Synthesizer, format_report_markdown
-    from open_deep_research.llm.client import BudgetExhaustedError, LLMClient, VerboseEvent
+    from open_deep_research.llm.client import BudgetExhaustedError, LLMCallError, LLMClient, VerboseEvent
     from open_deep_research.models import TokenBudget
     from open_deep_research.providers import create_provider
     from open_deep_research.state.session import SessionManager
@@ -75,6 +75,8 @@ async def research(query: str, settings: Settings | None = None, config_path: Pa
                 break
     except BudgetExhaustedError:
         pass  # Fall through to synthesis
+    except LLMCallError:
+        pass  # Fall through to synthesis with partial results
 
     state.status = "synthesizing"
     report = await synthesizer.synthesize(plan, state.findings, state.sources, budget)

@@ -28,7 +28,7 @@ from open_deep_research.core.reader import Reader
 from open_deep_research.core.searcher import Searcher
 from open_deep_research.core.synthesizer import Synthesizer, format_report_markdown
 from open_deep_research.embeddings.dedup import FindingDeduplicator
-from open_deep_research.llm.client import BudgetExhaustedError, LLMClient, VerboseEvent
+from open_deep_research.llm.client import BudgetExhaustedError, LLMCallError, LLMClient, VerboseEvent
 from open_deep_research.models import IterationMetrics, SessionState, TokenBudget
 from open_deep_research.providers import create_provider
 from open_deep_research.state.session import SessionManager
@@ -112,6 +112,8 @@ async def _run_investigation_loop(
                 break
     except BudgetExhaustedError:
         console.print("[yellow]Budget exhausted — moving to synthesis.[/]")
+    except LLMCallError as e:
+        console.print(f"[yellow]LLM error — moving to synthesis with partial results: {e}[/]")
 
     # SYNTHESIZE
     show_synthesizing()
