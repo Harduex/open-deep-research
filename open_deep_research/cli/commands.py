@@ -289,7 +289,7 @@ def research(
     except KeyboardInterrupt:
         console.print("\n[yellow]Research interrupted.[/]")
     except Exception as e:
-        show_error(str(e))
+        show_error(str(e) or f"{type(e).__name__}: operation timed out or failed")
         raise typer.Exit(1)
 
 
@@ -317,7 +317,7 @@ def resume(
     except KeyboardInterrupt:
         console.print("\n[yellow]Research interrupted.[/]")
     except Exception as e:
-        show_error(str(e))
+        show_error(str(e) or f"{type(e).__name__}: operation timed out or failed")
         raise typer.Exit(1)
 
 
@@ -336,7 +336,7 @@ def follow_up(
     except KeyboardInterrupt:
         console.print("\n[yellow]Research interrupted.[/]")
     except Exception as e:
-        show_error(str(e))
+        show_error(str(e) or f"{type(e).__name__}: operation timed out or failed")
         raise typer.Exit(1)
 
 

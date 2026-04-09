@@ -3,11 +3,13 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import time
 from dataclasses import dataclass
 from typing import Callable, TypeVar
 
 import litellm
 from pydantic import BaseModel, ValidationError
+from rich.console import Console
 
 from open_deep_research.config import LLMConfig
 from open_deep_research.models import TokenBudget
@@ -87,6 +89,18 @@ class LLMClient:
     async def complete_text(self, prompt: str, system: str | None = None, stage: str = "") -> str:
         return await self._call(prompt, system, stage=stage)
 
+    _STAGE_LABELS = {
+        "planning": "Planning",
+        "query_generation": "Generating queries",
+        "plan_update": "Updating plan",
+        "evaluation": "Evaluating",
+        "synthesis": "Synthesizing",
+        "verification": "Verifying",
+    }
+    # Stages that run concurrently — skip spinner to avoid console conflicts
+    _BATCH_STAGES = {"finding_extraction", "summarization"}
+    _console = Console()
+
     async def _call(self, prompt: str, system: str | None = None, stage: str = "") -> str:
         if self._budget.is_exceeded:
             raise BudgetExhaustedError("Token budget exhausted")
@@ -106,10 +120,35 @@ class LLMClient:
         if self._api_key:
             kwargs["api_key"] = self._api_key
 
-        response = await asyncio.wait_for(
-            litellm.acompletion(**kwargs),
-            timeout=self.LLM_TIMEOUT,
-        )
+        use_spinner = stage not in self._BATCH_STAGES
+        label = self._STAGE_LABELS.get(stage, stage or "Thinking")
+        start = time.monotonic()
+
+        if use_spinner:
+            async def _update_status(status):
+                while True:
+                    await asyncio.sleep(1)
+                    elapsed = int(time.monotonic() - start)
+                    status.update(f"  [bold cyan]{label}...[/] [dim]{elapsed}s[/]")
+
+            with self._console.status(f"  [bold cyan]{label}...[/]", spinner="dots") as status:
+                updater = asyncio.create_task(_update_status(status))
+                try:
+                    response = await asyncio.wait_for(
+                        litellm.acompletion(**kwargs),
+                        timeout=self.LLM_TIMEOUT,
+                    )
+                finally:
+                    updater.cancel()
+
+            elapsed = int(time.monotonic() - start)
+            self._console.print(f"  [dim]{label} done ({elapsed}s)[/]")
+        else:
+            response = await asyncio.wait_for(
+                litellm.acompletion(**kwargs),
+                timeout=self.LLM_TIMEOUT,
+            )
+
         self._track_usage(response)
         raw = response.choices[0].message.content or ""
 
