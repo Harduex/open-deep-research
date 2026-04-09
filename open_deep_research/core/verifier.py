@@ -82,7 +82,7 @@ class Verifier:
     async def _verify(self, draft: str, source_material: str) -> VerificationResult:
         prompt = VERIFICATION_PROMPT.format(draft=draft, source_material=source_material)
         try:
-            return await self._client.complete(prompt, VerificationResult)
+            return await self._client.complete(prompt, VerificationResult, stage="verification")
         except Exception:
             return VerificationResult(verdict="correct")
 
@@ -90,7 +90,7 @@ class Verifier:
         prompt = REVISION_PROMPT.format(
             draft=draft, feedback=feedback, source_material=source_material,
         )
-        return await self._client.complete_text(prompt)
+        return await self._client.complete_text(prompt, stage="revision")
 
     @staticmethod
     def _format_sources(findings: list[Finding], sources: list[Source]) -> str:

@@ -88,7 +88,7 @@ class Evaluator:
             budget_max=budget.max_tokens,
             metrics_section=metrics_section,
         )
-        return await self._client.complete(prompt, StoppingEvaluation)
+        return await self._client.complete(prompt, StoppingEvaluation, stage="evaluation")
 
     @staticmethod
     def _estimate_coverage(plan: ResearchPlan) -> float:

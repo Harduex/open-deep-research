@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import re
-from typing import TypeVar
+from dataclasses import dataclass
+from typing import Callable, TypeVar
 
 import litellm
 from pydantic import BaseModel, ValidationError
@@ -11,6 +12,14 @@ from open_deep_research.config import LLMConfig
 from open_deep_research.models import TokenBudget
 
 T = TypeVar("T", bound=BaseModel)
+
+
+@dataclass
+class VerboseEvent:
+    stage: str
+    thinking: str
+    raw_response: str
+    prompt_summary: str
 
 
 class StructuredOutputError(Exception):
@@ -45,14 +54,15 @@ def _extract_json(text: str) -> str:
 
 
 class LLMClient:
-    def __init__(self, config: LLMConfig, budget: TokenBudget) -> None:
+    def __init__(self, config: LLMConfig, budget: TokenBudget, verbose_callback: Callable[[VerboseEvent], None] | None = None) -> None:
         self._model = config.model
         self._api_base = config.api_base
         self._api_key = config.api_key
         self._temperature = config.temperature
         self._budget = budget
+        self._verbose_callback = verbose_callback
 
-    async def complete(self, prompt: str, response_model: type[T], system: str | None = None) -> T:
+    async def complete(self, prompt: str, response_model: type[T], system: str | None = None, stage: str = "") -> T:
         schema = json.dumps(response_model.model_json_schema(), indent=2)
         full_prompt = f"{prompt}\n\nRespond with valid JSON matching this schema:\n{schema}"
 
@@ -61,7 +71,7 @@ class LLMClient:
             if attempt > 0 and last_error:
                 full_prompt += f"\n\nYour previous response had validation errors: {last_error}. Please fix and respond again."
 
-            text = await self._call(full_prompt, system)
+            text = await self._call(full_prompt, system, stage=stage)
             json_str = _extract_json(text)
 
             try:
@@ -71,10 +81,10 @@ class LLMClient:
 
         raise StructuredOutputError(f"Failed to parse structured output after 3 attempts: {last_error}")
 
-    async def complete_text(self, prompt: str, system: str | None = None) -> str:
-        return await self._call(prompt, system)
+    async def complete_text(self, prompt: str, system: str | None = None, stage: str = "") -> str:
+        return await self._call(prompt, system, stage=stage)
 
-    async def _call(self, prompt: str, system: str | None = None) -> str:
+    async def _call(self, prompt: str, system: str | None = None, stage: str = "") -> str:
         if self._budget.is_exceeded:
             raise BudgetExhaustedError("Token budget exhausted")
 
@@ -95,7 +105,21 @@ class LLMClient:
 
         response = await litellm.acompletion(**kwargs)
         self._track_usage(response)
-        return response.choices[0].message.content or ""
+        raw = response.choices[0].message.content or ""
+
+        if self._verbose_callback and stage:
+            thinking = ""
+            think_match = re.search(r"<think>(.*?)</think>", raw, re.DOTALL)
+            if think_match:
+                thinking = think_match.group(1).strip()
+            self._verbose_callback(VerboseEvent(
+                stage=stage,
+                thinking=thinking,
+                raw_response=raw,
+                prompt_summary=prompt[:200],
+            ))
+
+        return raw
 
     def _track_usage(self, response) -> None:
         usage = getattr(response, "usage", None)

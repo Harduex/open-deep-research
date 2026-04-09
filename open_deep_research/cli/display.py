@@ -85,3 +85,17 @@ def show_sessions(sessions: list[dict]) -> None:
 
 def show_complete(session_id: str) -> None:
     console.print(f"\n[bold green]Research complete.[/] Session: {session_id}")
+
+
+def show_verbose_step(stage: str, description: str) -> None:
+    console.print(f"\n  [bold dim]▶ {stage}:[/] [dim]{description}[/]")
+
+
+def show_verbose_thinking(thinking: str) -> None:
+    if thinking:
+        console.print(Panel(thinking, title="[cyan]Model Thinking[/]", border_style="dim cyan", padding=(0, 1)))
+
+
+def show_verbose_response(raw: str, stage: str) -> None:
+    display = raw[:2000] + "..." if len(raw) > 2000 else raw
+    console.print(Panel(display, title=f"[yellow]Raw Response — {stage}[/]", border_style="dim yellow", padding=(0, 1)))

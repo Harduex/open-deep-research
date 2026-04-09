@@ -138,7 +138,7 @@ class Searcher:
             existing_context=existing_ctx,
         )
         try:
-            response = await self._client.complete(prompt, _QueryResponse)
+            response = await self._client.complete(prompt, _QueryResponse, stage="query_generation")
             return response.queries[:3]
         except Exception:
             # Fallback: use the question itself as a search query
@@ -152,7 +152,7 @@ class Searcher:
             snippet=source.snippet[:2000],
         )
         try:
-            response = await self._client.complete(prompt, _FindingResponse)
+            response = await self._client.complete(prompt, _FindingResponse, stage="finding_extraction")
             if not response.is_relevant:
                 return None
             confidence = response.confidence if response.confidence in ("high", "medium", "low") else "medium"

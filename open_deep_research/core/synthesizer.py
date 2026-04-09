@@ -92,7 +92,8 @@ class Synthesizer:
 
         # Title
         title = await self._client.complete_text(
-            f'Generate a concise, descriptive title (5-10 words) for a research report about: {plan.query}\n\nRespond with ONLY the title, no quotes or punctuation around it.'
+            f'Generate a concise, descriptive title (5-10 words) for a research report about: {plan.query}\n\nRespond with ONLY the title, no quotes or punctuation around it.',
+            stage="title_generation",
         )
 
         return Report(
@@ -126,7 +127,7 @@ class Synthesizer:
                 findings_with_sources=findings_text,
                 source_map=source_map,
             )
-            content = await self._client.complete_text(prompt)
+            content = await self._client.complete_text(prompt, stage="section_generation")
 
             # Self-verification pass
             content, was_flawed = await self._verifier.verify_and_revise(content, section_findings, sources)
@@ -143,7 +144,7 @@ class Synthesizer:
     async def _generate_executive_summary(self, sections: list[ReportSection], query: str) -> str:
         sections_summary = "\n".join(f"## {s.title}\n{s.content[:300]}..." for s in sections)
         prompt = EXECUTIVE_SUMMARY_PROMPT.format(query=query, sections_summary=sections_summary)
-        return await self._client.complete_text(prompt)
+        return await self._client.complete_text(prompt, stage="executive_summary")
 
     async def _detect_contradictions(self, findings: list[Finding], sources: list[Source]) -> list[str]:
         findings_text = "\n".join(
@@ -151,7 +152,7 @@ class Synthesizer:
         )
         prompt = CONTRADICTION_DETECTION_PROMPT.format(all_findings_with_sources=findings_text)
         try:
-            response = await self._client.complete(prompt, _ContradictionResponse)
+            response = await self._client.complete(prompt, _ContradictionResponse, stage="contradiction_detection")
             return response.contradictions
         except Exception:
             return []

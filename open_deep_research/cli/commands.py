@@ -17,6 +17,9 @@ from open_deep_research.cli.display import (
     show_plan,
     show_sessions,
     show_synthesizing,
+    show_verbose_response,
+    show_verbose_step,
+    show_verbose_thinking,
 )
 from open_deep_research.config import load_settings
 from open_deep_research.core.evaluator import Evaluator
@@ -25,7 +28,7 @@ from open_deep_research.core.reader import Reader
 from open_deep_research.core.searcher import Searcher
 from open_deep_research.core.synthesizer import Synthesizer, format_report_markdown
 from open_deep_research.embeddings.dedup import FindingDeduplicator
-from open_deep_research.llm.client import BudgetExhaustedError, LLMClient
+from open_deep_research.llm.client import BudgetExhaustedError, LLMClient, VerboseEvent
 from open_deep_research.models import IterationMetrics, SessionState, TokenBudget
 from open_deep_research.providers import create_provider
 from open_deep_research.state.session import SessionManager
@@ -40,6 +43,7 @@ async def _run_investigation_loop(
     session_mgr: SessionManager,
     budget: TokenBudget,
     dedup: FindingDeduplicator | None = None,
+    verbose: bool = False,
 ) -> str:
     """Run the investigation loop on a session state and return markdown report."""
     plan = state.plan
@@ -57,6 +61,9 @@ async def _run_investigation_loop(
             sq.status = "investigating"  # type: ignore[assignment]
             show_iteration(plan.iteration, plan.max_iterations)
             console.print(f"  [bold]Investigating:[/] {sq.question}")
+
+            if verbose:
+                show_verbose_step("Searching", f"Generating queries and searching for sub-question: {sq.question}")
 
             new_sources, new_findings = await searcher.search_sub_question(sq, state.sources)
             state.sources.extend(new_sources)
@@ -84,8 +91,15 @@ async def _run_investigation_loop(
             ))
 
             sq.status = "answered" if new_findings else "unanswerable"  # type: ignore[assignment]
+
+            if verbose:
+                show_verbose_step("Plan Update", f"Reviewing progress and updating plan (iteration {plan.iteration})")
+
             plan = await planner.update_plan(plan, new_findings, state.sources)
             show_budget(budget)
+
+            if verbose:
+                show_verbose_step("Evaluation", "Checking if research has sufficient coverage to stop")
 
             evaluation = await evaluator.evaluate_stopping(
                 plan, state.findings, state.sources, budget,
@@ -101,6 +115,9 @@ async def _run_investigation_loop(
 
     # SYNTHESIZE
     show_synthesizing()
+    if verbose:
+        show_verbose_step("Synthesis", f"Generating report from {len(state.findings)} findings across {len(state.sources)} sources")
+
     state.status = "synthesizing"
     report = await synthesizer.synthesize(plan, state.findings, state.sources, budget)
     state.report = report
@@ -112,10 +129,19 @@ async def _run_investigation_loop(
     return markdown
 
 
+def _make_verbose_callback() -> callable:
+    """Create a callback that displays verbose LLM output."""
+    def callback(event: VerboseEvent) -> None:
+        show_verbose_thinking(event.thinking)
+        show_verbose_response(event.raw_response, event.stage)
+    return callback
+
+
 def _build_components(settings):
     """Build all pipeline components from settings."""
     budget = TokenBudget(max_tokens=settings.research.budget_tokens)
-    client = LLMClient(settings.llm, budget)
+    verbose_callback = _make_verbose_callback() if settings.output.verbose else None
+    client = LLMClient(settings.llm, budget, verbose_callback=verbose_callback)
     provider = create_provider(settings.search)
     reader = Reader(client, settings.research.source_summary_tokens)
     planner = Planner(client)
@@ -147,20 +173,28 @@ async def _run_research(
         settings.research.max_iterations = max_iterations
     if budget_override := settings_overrides.get("budget"):
         settings.research.budget_tokens = budget_override
+    if settings_overrides.get("verbose") is not None:
+        settings.output.verbose = settings_overrides["verbose"]
 
     client, provider, reader, planner, searcher, evaluator, synthesizer, session_mgr, budget, dedup = _build_components(settings)
 
     # PLAN
     console.print(f"\n[bold]Researching:[/] {query}\n")
+
+    if settings.output.verbose:
+        show_verbose_step("Planning", "Decomposing query into sub-questions")
+
     plan = await planner.create_plan(query, settings.research.max_iterations)
     state = session_mgr.create_session(plan, settings.research.budget_tokens)
     state.budget = budget
 
-    return await _run_investigation_loop(state, planner, searcher, evaluator, synthesizer, session_mgr, budget, dedup)
+    return await _run_investigation_loop(state, planner, searcher, evaluator, synthesizer, session_mgr, budget, dedup, verbose=settings.output.verbose)
 
 
-async def _run_resume(session_id: str, config_path: Path | None) -> str:
+async def _run_resume(session_id: str, config_path: Path | None, verbose: bool = False) -> str:
     settings = load_settings(config_path)
+    if verbose:
+        settings.output.verbose = True
     client, provider, reader, planner, searcher, evaluator, synthesizer, session_mgr, budget, dedup = _build_components(settings)
 
     state = session_mgr.load(session_id)
@@ -177,11 +211,13 @@ async def _run_resume(session_id: str, config_path: Path | None) -> str:
     console.print(f"\n[bold]Resuming session:[/] {session_id}")
     console.print(f"[dim]Query:[/] {state.plan.query}\n")
 
-    return await _run_investigation_loop(state, planner, searcher, evaluator, synthesizer, session_mgr, budget, dedup)
+    return await _run_investigation_loop(state, planner, searcher, evaluator, synthesizer, session_mgr, budget, dedup, verbose=settings.output.verbose)
 
 
-async def _run_follow_up(session_id: str, follow_up_query: str, config_path: Path | None) -> str:
+async def _run_follow_up(session_id: str, follow_up_query: str, config_path: Path | None, verbose: bool = False) -> str:
     settings = load_settings(config_path)
+    if verbose:
+        settings.output.verbose = True
     client, provider, reader, planner, searcher, evaluator, synthesizer, session_mgr, budget, dedup = _build_components(settings)
 
     state = session_mgr.load(session_id)
@@ -220,7 +256,7 @@ async def _run_follow_up(session_id: str, follow_up_query: str, config_path: Pat
     state.status = "investigating"
     state.report = None  # Will be regenerated
 
-    return await _run_investigation_loop(state, planner, searcher, evaluator, synthesizer, session_mgr, budget, dedup)
+    return await _run_investigation_loop(state, planner, searcher, evaluator, synthesizer, session_mgr, budget, dedup, verbose=settings.output.verbose)
 
 
 @app.command()
@@ -230,6 +266,7 @@ def research(
     max_sources: int | None = typer.Option(None, "-s", "--max-sources", help="Maximum sources to read"),
     max_iterations: int | None = typer.Option(None, "-i", "--max-iterations", help="Maximum research iterations"),
     budget: int | None = typer.Option(None, "-b", "--budget", help="Token budget"),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Show model thinking, raw responses, and step-by-step reasoning"),
     config: Path | None = typer.Option(None, "-c", "--config", help="Path to config.yaml"),
 ) -> None:
     """Run a deep research investigation on a topic."""
@@ -242,6 +279,8 @@ def research(
         overrides["max_iterations"] = max_iterations
     if budget:
         overrides["budget"] = budget
+    if verbose:
+        overrides["verbose"] = True
 
     try:
         result = asyncio.run(_run_research(query, overrides, config))
@@ -267,11 +306,12 @@ def sessions(
 @app.command()
 def resume(
     session_id: str = typer.Argument(..., help="Session ID to resume"),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Show model thinking, raw responses, and step-by-step reasoning"),
     config: Path | None = typer.Option(None, "-c", "--config", help="Path to config.yaml"),
 ) -> None:
     """Resume an interrupted research session."""
     try:
-        result = asyncio.run(_run_resume(session_id, config))
+        result = asyncio.run(_run_resume(session_id, config, verbose=verbose))
         console.print("\n")
         console.print(result)
     except KeyboardInterrupt:
@@ -285,11 +325,12 @@ def resume(
 def follow_up(
     session_id: str = typer.Argument(..., help="Session ID to follow up on"),
     query: str = typer.Argument(..., help="Follow-up question"),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Show model thinking, raw responses, and step-by-step reasoning"),
     config: Path | None = typer.Option(None, "-c", "--config", help="Path to config.yaml"),
 ) -> None:
     """Ask a follow-up question on a completed research session."""
     try:
-        result = asyncio.run(_run_follow_up(session_id, query, config))
+        result = asyncio.run(_run_follow_up(session_id, query, config, verbose=verbose))
         console.print("\n")
         console.print(result)
     except KeyboardInterrupt:

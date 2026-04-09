@@ -86,7 +86,7 @@ class Reader:
             title=title,
             content=text,
         )
-        return await self._client.complete_text(prompt)
+        return await self._client.complete_text(prompt, stage="summarization")
 
     @staticmethod
     def _extract_links(html: str, base_url: str) -> list[str]:

@@ -45,6 +45,9 @@ research:
   max_iterations: 10
   max_sources: 30
   budget_tokens: 500000
+
+output:
+  verbose: false  # Set to true to show model thinking & raw LLM responses
 ```
 
 Environment variables with `ODR_` prefix also work (e.g. `ODR_LLM__MODEL=openai/gpt-4o`).
@@ -53,6 +56,7 @@ Environment variables with `ODR_` prefix also work (e.g. `ODR_LLM__MODEL=openai/
 
 ```bash
 odr research "query"                            # Run research
+odr research "query" --verbose                   # Show model thinking & raw responses
 odr sessions                                    # List saved sessions
 odr resume <session-id>                         # Resume interrupted session
 odr follow-up <session-id> "expand on X"        # Follow-up on completed research

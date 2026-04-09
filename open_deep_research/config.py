@@ -36,6 +36,7 @@ class OutputConfig(BaseModel):
     format: str = "markdown"
     include_confidence: bool = True
     include_contradictions: bool = True
+    verbose: bool = False
 
 
 class SessionsConfig(BaseModel):

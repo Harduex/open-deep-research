@@ -12,7 +12,7 @@ async def research(query: str, settings: Settings | None = None, config_path: Pa
     from open_deep_research.core.reader import Reader
     from open_deep_research.core.searcher import Searcher
     from open_deep_research.core.synthesizer import Synthesizer, format_report_markdown
-    from open_deep_research.llm.client import BudgetExhaustedError, LLMClient
+    from open_deep_research.llm.client import BudgetExhaustedError, LLMClient, VerboseEvent
     from open_deep_research.models import TokenBudget
     from open_deep_research.providers import create_provider
     from open_deep_research.state.session import SessionManager
@@ -26,11 +26,14 @@ async def research(query: str, settings: Settings | None = None, config_path: Pa
         settings.research.max_sources = max_sources
     if max_iterations := overrides.get("max_iterations"):
         settings.research.max_iterations = max_iterations
+    if overrides.get("verbose") is not None:
+        settings.output.verbose = overrides["verbose"]
 
     budget_tokens = overrides.get("budget", settings.research.budget_tokens)
     budget = TokenBudget(max_tokens=budget_tokens)
 
-    client = LLMClient(settings.llm, budget)
+    verbose_callback = overrides.get("verbose_callback")
+    client = LLMClient(settings.llm, budget, verbose_callback=verbose_callback)
     provider = create_provider(settings.search)
     reader = Reader(client, settings.research.source_summary_tokens)
     planner = Planner(client)

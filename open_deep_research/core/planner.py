@@ -58,7 +58,7 @@ class Planner:
 
     async def create_plan(self, query: str, max_iterations: int = 10) -> ResearchPlan:
         prompt = PLANNING_PROMPT.format(query=query)
-        response = await self._client.complete(prompt, _PlanResponse)
+        response = await self._client.complete(prompt, _PlanResponse, stage="planning")
 
         sub_questions = [
             SubQuestion(id=f"sq_{i}", question=sq.question)
@@ -81,7 +81,7 @@ class Planner:
             findings_summary=findings_summary,
             source_count=len(sources),
         )
-        response = await self._client.complete(prompt, _PlanUpdateResponse)
+        response = await self._client.complete(prompt, _PlanUpdateResponse, stage="plan_update")
 
         # Apply status updates
         status_map = {u.id: u.status for u in response.status_updates}

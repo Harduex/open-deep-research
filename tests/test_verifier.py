@@ -11,12 +11,12 @@ class _FakeClient:
         self._verdicts = list(verdicts)
         self._call_count = 0
 
-    async def complete(self, prompt, model_cls):
+    async def complete(self, prompt, model_cls, stage=""):
         verdict = self._verdicts[self._call_count] if self._call_count < len(self._verdicts) else "correct"
         self._call_count += 1
         return VerificationResult(verdict=verdict, feedback="test feedback")
 
-    async def complete_text(self, prompt, system=None):
+    async def complete_text(self, prompt, system=None, stage=""):
         return "revised text"
 
 
