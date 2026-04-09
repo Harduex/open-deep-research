@@ -111,22 +111,28 @@ class Synthesizer:
         )
 
     async def _generate_section(
-        self, question: str, section_findings: list[Finding], sources: list[Source], source_map: str,
+        self, question: str, section_findings: list[Finding],
+        sources: list[Source], source_map: str,
+        max_regenerations: int = 1,
     ) -> ReportSection:
         findings_text = "\n".join(
             f"- (confidence: {f.confidence}, sources: {f.source_ids}) {f.content}"
             for f in section_findings
         )
 
-        prompt = SECTION_GENERATION_PROMPT.format(
-            question=question,
-            findings_with_sources=findings_text,
-            source_map=source_map,
-        )
-        content = await self._client.complete_text(prompt)
+        for attempt in range(1 + max_regenerations):
+            prompt = SECTION_GENERATION_PROMPT.format(
+                question=question,
+                findings_with_sources=findings_text,
+                source_map=source_map,
+            )
+            content = await self._client.complete_text(prompt)
 
-        # Self-verification pass
-        content = await self._verifier.verify_and_revise(content, section_findings, sources)
+            # Self-verification pass
+            content, was_flawed = await self._verifier.verify_and_revise(content, section_findings, sources)
+            if not was_flawed or attempt == max_regenerations:
+                break
+            # Fundamentally flawed — regenerate from scratch
 
         all_source_ids = []
         for f in section_findings:

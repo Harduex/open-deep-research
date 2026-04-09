@@ -55,7 +55,8 @@ class Verifier:
 
     async def verify_and_revise(
         self, draft: str, findings: list[Finding], sources: list[Source],
-    ) -> str:
+    ) -> tuple[str, bool]:
+        """Verify and revise a draft. Returns (text, was_fundamentally_flawed)."""
         source_material = self._format_sources(findings, sources)
 
         current_draft = draft
@@ -63,22 +64,20 @@ class Verifier:
             result = await self._verify(current_draft, source_material)
 
             if result.verdict == "correct":
-                return current_draft
+                return current_draft, False
 
             if result.verdict == "fundamentally_flawed":
-                # Full regeneration would happen at the caller level
-                # Here we attempt one revision with strong feedback
-                current_draft = await self._revise(current_draft, result.feedback, source_material)
-                continue
+                # Signal caller to regenerate from scratch
+                return current_draft, True
 
             if result.verdict == "minor_fixes":
                 current_draft = await self._revise(current_draft, result.feedback, source_material)
                 continue
 
             # Unknown verdict, return as-is
-            return current_draft
+            return current_draft, False
 
-        return current_draft
+        return current_draft, False
 
     async def _verify(self, draft: str, source_material: str) -> VerificationResult:
         prompt = VERIFICATION_PROMPT.format(draft=draft, source_material=source_material)
